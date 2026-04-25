@@ -1,0 +1,41 @@
+ARG TARGETPLATFORM
+FROM --platform=$TARGETPLATFORM node:22-bookworm
+
+ARG TARGETARCH
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV ANDROID_HOME=/opt/android-sdk
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-${TARGETARCH}
+ENV PATH=${JAVA_HOME}/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/cmdline-tools/latest/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV GRADLE_USER_HOME=/opt/gradle-home
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    openjdk-17-jdk \
+    unzip \
+    wget \
+    rsync \
+    cmake \
+    ninja-build \
+    git \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools" "${GRADLE_USER_HOME}"
+
+RUN wget -O /tmp/android-cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+  && unzip -q /tmp/android-cmdline-tools.zip -d /tmp/android-cmdline-tools \
+  && mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
+  && mv /tmp/android-cmdline-tools/cmdline-tools/* "${ANDROID_SDK_ROOT}/cmdline-tools/latest/" \
+  && rm -rf /tmp/android-cmdline-tools /tmp/android-cmdline-tools.zip
+
+RUN yes | sdkmanager --licenses >/dev/null || test $? -eq 141
+
+RUN sdkmanager \
+  "platform-tools" \
+  "platforms;android-36" \
+  "build-tools;36.0.0" \
+  "ndk;27.1.12297006" \
+  "cmake;3.22.1"
+
+WORKDIR /work
